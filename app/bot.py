@@ -239,100 +239,186 @@ def main(symbol, counter, total):
     validateBuy = False
     validateSell = False
 
-    runOnce = 1
-    if runOnce == 1:
-        try:
-            alt = settings.trade_coin
-            crypto = settings.trade_crypto
+    try:
+        alt = settings.trade_coin
+        crypto = settings.trade_crypto
 
-            #symbol = f"{crypto}{alt}"
+        #symbol = f"{crypto}{alt}"
 
-            print(f"{counter} out of {total}: {symbol}")
+        print(f"{counter} out of {total}: {symbol}")
 
+        # Get Binance Data into dataframe
+        KLINE_INTERVAL = settings.trade_time_frame
+        candles = client.get_klines(
+            symbol=symbol, interval=KLINE_INTERVAL)
+        df = pd.DataFrame(candles)
+        df.columns = ['timestart', 'open', 'high', 'low',
+                        'close', '?', 'timeend', '?', '?', '?', '?', '?']
+        df.timestart = [datetime.datetime.fromtimestamp(
+            i/1000) for i in df.timestart.values]
+        df.timeend = [datetime.datetime.fromtimestamp(
+            i/1000) for i in df.timeend.values]
+
+        # Compute RSI after fixing data
+        float_data = [float(x) for x in df.close.values]
+        np_float_data = np.array(float_data)
+        rsi = talib.RSI(np_float_data, settings.trade_rsi_ifr)
+        df['rsi'] = rsi
+
+        # Compute StochRSI using RSI values in Stochastic function
+        mystochrsi = Stoch(df.rsi, df.rsi, df.rsi, settings.trade_rsi_k,
+                            settings.trade_rsi_d, settings.trade_rsi_stochastic)
+        df['MyStochrsiK'], df['MyStochrsiD'] = mystochrsi
+
+        newestcandlestart = df.timestart.astype(
+            str).iloc[-1]  # gets last time
+        newestcandleend = df.timeend.astype(
+            str).iloc[-1]  # gets current time?
+        newestcandleclose = round(
+            float(df.close.iloc[-1]), 8)  # gets last close
+        newestcandleRSI = round(
+            float(df.rsi.astype(str).iloc[-1]), 8)  # gets last rsi
+        newestcandleK = round(float(df.MyStochrsiK.astype(
+            str).iloc[-1]), 8)  # gets last rsi
+        newestcandleD = round(float(df.MyStochrsiD.astype(
+            str).iloc[-1]), 8)  # gets last rsi
+
+        if settings.trade_upper_stoch_validador:
             # Get Binance Data into dataframe
-            KLINE_INTERVAL = settings.trade_time_frame
-            candles = client.get_klines(
-                symbol=symbol, interval=KLINE_INTERVAL)
-            df = pd.DataFrame(candles)
-            df.columns = ['timestart', 'open', 'high', 'low',
-                          'close', '?', 'timeend', '?', '?', '?', '?', '?']
-            df.timestart = [datetime.datetime.fromtimestamp(
-                i/1000) for i in df.timestart.values]
-            df.timeend = [datetime.datetime.fromtimestamp(
-                i/1000) for i in df.timeend.values]
+            KLINE_INTERVAL_UPPER = settings.trade_upper_stoch_validador_value
+            candlesUpper = client.get_klines(
+                symbol=symbol, interval=KLINE_INTERVAL_UPPER)
+            dfUpper = pd.DataFrame(candlesUpper)
+            dfUpper.columns = ['timestart', 'open', 'high', 'low',
+                        'close', '?', 'timeend', '?', '?', '?', '?', '?']
+            dfUpper.timestart = [datetime.datetime.fromtimestamp(
+                i/1000) for i in dfUpper.timestart.values]
+            dfUpper.timeend = [datetime.datetime.fromtimestamp(
+                i/1000) for i in dfUpper.timeend.values]
 
             # Compute RSI after fixing data
-            float_data = [float(x) for x in df.close.values]
-            np_float_data = np.array(float_data)
-            rsi = talib.RSI(np_float_data, settings.trade_rsi_ifr)
-            df['rsi'] = rsi
+            float_data_upper = [float(x) for x in dfUpper.close.values]
+            np_float_data_upper = np.array(float_data_upper)
+            rsiUpper = talib.RSI(np_float_data_upper, settings.trade_rsi_ifr)
+            dfUpper['rsi'] = rsiUpper
 
             # Compute StochRSI using RSI values in Stochastic function
-            mystochrsi = Stoch(df.rsi, df.rsi, df.rsi, settings.trade_rsi_k,
-                               settings.trade_rsi_d, settings.trade_rsi_stochastic)
-            df['MyStochrsiK'], df['MyStochrsiD'] = mystochrsi
+            mystochrsiUpper = Stoch(dfUpper.rsi, dfUpper.rsi, dfUpper.rsi, settings.trade_rsi_k,
+                            settings.trade_rsi_d, settings.trade_rsi_stochastic)
+            dfUpper['MyStochrsiK'], dfUpper['MyStochrsiD'] = mystochrsiUpper
 
-            newestcandlestart = df.timestart.astype(
-                str).iloc[-1]  # gets last time
-            newestcandleend = df.timeend.astype(
-                str).iloc[-1]  # gets current time?
-            newestcandleclose = round(
-                float(df.close.iloc[-1]), 8)  # gets last close
-            newestcandleRSI = round(
-                float(df.rsi.astype(str).iloc[-1]), 8)  # gets last rsi
-            newestcandleK = round(float(df.MyStochrsiK.astype(
+            newestcandleKUpper = round(float(dfUpper.MyStochrsiK.astype(
                 str).iloc[-1]), 8)  # gets last rsi
-            newestcandleD = round(float(df.MyStochrsiD.astype(
+            newestcandleDUpper = round(float(dfUpper.MyStochrsiD.astype(
                 str).iloc[-1]), 8)  # gets last rsi
 
+        if settings.trade_wma_cross:
+            # Compute WMAs
+            wmaLow = round(
+                float((talib.WMA(df['close'], timeperiod=settings.trade_wma_low)).iloc[-1]), 8)
+            wmaMiddle = round(
+                float((talib.WMA(df['close'], timeperiod=settings.trade_wma_middle)).iloc[-1]), 8)
+            wmaHigh = round(
+                float((talib.WMA(df['close'], timeperiod=settings.trade_wma_high)).iloc[-1]), 8)
+            # Trade Validator
+            if float(wmaLow) > float(wmaMiddle):
+                lastClose = df.timeend.iloc[-1]
+                if lastClose != lastCloseTradeUp:
+                    lastCloseTradeUp = lastClose
+                    lastCloseUpSUM += 1
+                if lastCloseUpSUM == settings.trade_wma_cross_candle_qtd:
+                    if settings.trade_upper_stoch_validador:
+                        validateBuy = (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper))
+                    else:
+                        validateBuy = float(newestcandleK) > float(newestcandleD)
+                    validateSell = False
+                    lastCloseUpSUM = 0
+                    lastCloseTradeUp = None
+            else:
+                validateBuy = False
+                lastCloseUpSUM = 0
+                lastCloseTradeUp = None
+            if float(wmaLow) < float(wmaHigh):
+                lastClose = df.timeend.iloc[-1]
+                if lastClose != lastCloseTradeDown:
+                    lastCloseTrade = lastClose
+                    lastCloseDownSUM += 1
+                if lastCloseDownSUM == settings.trade_wma_cross_candle_qtd:
+                    if settings.trade_upper_stoch_validador:
+                        validateSell = (float(newestcandleK) < float(newestcandleD)) 
+                    else:
+                        validateSell = float(newestcandleK) < float(newestcandleD)
+                    validateBuy = False
+                    lastCloseDownSUM = 0
+                    lastCloseTradeDown = None
+            else:
+                lastCloseDownSUM = 0
+                validateSell = False
+                lastCloseTradeDown = None
+            statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - WMA {settings.trade_wma_low}: {wmaLow} - WMA {settings.trade_wma_middle}: {wmaMiddle} - WMA {settings.trade_wma_high}: {wmaHigh}"
+
+        if settings.trade_ema_cross:
+            # Compute EMAs
+            emaLow = round(
+                float((talib.EMA(df['close'], timeperiod=settings.trade_ema_low)).iloc[-1]), 8)
+            emaHigh = round(
+                float((talib.EMA(df['close'], timeperiod=settings.trade_ema_high)).iloc[-1]), 8)
+            # Trade Validator
             if settings.trade_upper_stoch_validador:
-                # Get Binance Data into dataframe
-                KLINE_INTERVAL_UPPER = settings.trade_upper_stoch_validador_value
-                candlesUpper = client.get_klines(
-                    symbol=symbol, interval=KLINE_INTERVAL_UPPER)
-                dfUpper = pd.DataFrame(candlesUpper)
-                dfUpper.columns = ['timestart', 'open', 'high', 'low',
-                            'close', '?', 'timeend', '?', '?', '?', '?', '?']
-                dfUpper.timestart = [datetime.datetime.fromtimestamp(
-                    i/1000) for i in dfUpper.timestart.values]
-                dfUpper.timeend = [datetime.datetime.fromtimestamp(
-                    i/1000) for i in dfUpper.timeend.values]
+                validateBuy = (float(newestcandleK) > float(newestcandleD)) and (
+                    emaLow > emaHigh) and (float(newestcandleKUpper) > float(newestcandleDUpper)) 
+                validateSell = (float(newestcandleK) < float(newestcandleD)) and (
+                    emaLow < emaHigh) 
+            else:
+                validateBuy = (float(newestcandleK) > float(newestcandleD)) and (
+                    emaLow > emaHigh)
+                validateSell = (newestcandleK < newestcandleD) and (
+                    emaLow < emaHigh)
+            statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - EMA {settings.trade_ema_low}: {emaLow} - EMA {settings.trade_ema_high}: {emaHigh}"
 
-                # Compute RSI after fixing data
-                float_data_upper = [float(x) for x in dfUpper.close.values]
-                np_float_data_upper = np.array(float_data_upper)
-                rsiUpper = talib.RSI(np_float_data_upper, settings.trade_rsi_ifr)
-                dfUpper['rsi'] = rsiUpper
+        if settings.trade_ema_base_candle:
+            # Compute EMA
+            emaBaseClosed = round(
+                float((talib.EMA(df['close'], timeperiod=settings.trade_ema_base_candle_value)).iloc[-1]), 8)
+            # Trade Validator
+            lastClose = df.timeend.iloc[-1]
+            if lastClose != lastCloseTrade:
+                lastCloseTrade = lastClose
+                if newestcandleclose > emaBaseClosed:
+                    lastCloseUpSUM = lastCloseUpSUM + 1
+                else:
+                    lastCloseUpSUM = 0
+                if newestcandleclose < emaBaseClosed:
+                    lastCloseDownSUM = lastCloseDownSUM + 1
+                else:
+                    lastCloseDownSUM = 0
+            if lastCloseUpSUM == settings.trade_ema_base_candle_qtd:
+                if settings.trade_upper_stoch_validador:
+                    validateBuy = (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper))
+                else:
+                    validateBuy = (float(newestcandleK) > float(newestcandleD))
+                validateSell = False
+                lastCloseUpSUM = 0
+                lastCloseTrade = None
+            if lastCloseDownSUM == settings.trade_ema_base_candle_qtd:
+                if settings.trade_upper_stoch_validador:
+                    validateSell = float(newestcandleK) < float(newestcandleD)
+                else:
+                    validateSell = float(newestcandleK) < float(newestcandleD)
+                validateBuy = False
+                lastCloseDownSUM = 0
+                lastCloseTrade = None
+            statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - EMA {settings.trade_ema_low}: {emaLow} - EMA {settings.trade_ema_high}: {emaHigh} - EMA {settings.trade_ema_base_candle_value}: {emaBaseClosed}"
 
-                # Compute StochRSI using RSI values in Stochastic function
-                mystochrsiUpper = Stoch(dfUpper.rsi, dfUpper.rsi, dfUpper.rsi, settings.trade_rsi_k,
-                                settings.trade_rsi_d, settings.trade_rsi_stochastic)
-                dfUpper['MyStochrsiK'], dfUpper['MyStochrsiD'] = mystochrsiUpper
-
-                newestcandleKUpper = round(float(dfUpper.MyStochrsiK.astype(
-                    str).iloc[-1]), 8)  # gets last rsi
-                newestcandleDUpper = round(float(dfUpper.MyStochrsiD.astype(
-                    str).iloc[-1]), 8)  # gets last rsi
-
-            if settings.trade_wma_cross:
-                # Compute WMAs
-                wmaLow = round(
-                    float((talib.WMA(df['close'], timeperiod=settings.trade_wma_low)).iloc[-1]), 8)
-                wmaMiddle = round(
-                    float((talib.WMA(df['close'], timeperiod=settings.trade_wma_middle)).iloc[-1]), 8)
-                wmaHigh = round(
-                    float((talib.WMA(df['close'], timeperiod=settings.trade_wma_high)).iloc[-1]), 8)
-                # Trade Validator
-                if float(wmaLow) > float(wmaMiddle):
+        if not settings.trade_ema_base_candle and not settings.trade_ema_cross and not settings.trade_wma_cross:
+            if settings.trade_upper_stoch_validador:
+                if (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper)):
                     lastClose = df.timeend.iloc[-1]
                     if lastClose != lastCloseTradeUp:
                         lastCloseTradeUp = lastClose
                         lastCloseUpSUM += 1
-                    if lastCloseUpSUM == settings.trade_wma_cross_candle_qtd:
-                        if settings.trade_upper_stoch_validador:
-                            validateBuy = (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper))
-                        else:
-                            validateBuy = float(newestcandleK) > float(newestcandleD)
+                    if lastCloseUpSUM == settings.trade_stochrsi_base_candle_qtd:
+                        validateBuy = True
                         validateSell = False
                         lastCloseUpSUM = 0
                         lastCloseTradeUp = None
@@ -340,211 +426,123 @@ def main(symbol, counter, total):
                     validateBuy = False
                     lastCloseUpSUM = 0
                     lastCloseTradeUp = None
-                if float(wmaLow) < float(wmaHigh):
+                if (float(newestcandleK) < float(newestcandleD)):
                     lastClose = df.timeend.iloc[-1]
                     if lastClose != lastCloseTradeDown:
-                        lastCloseTrade = lastClose
+                        lastCloseTradeDown = lastClose
                         lastCloseDownSUM += 1
-                    if lastCloseDownSUM == settings.trade_wma_cross_candle_qtd:
-                        if settings.trade_upper_stoch_validador:
-                            validateSell = (float(newestcandleK) < float(newestcandleD)) 
-                        else:
-                            validateSell = float(newestcandleK) < float(newestcandleD)
+                    if lastCloseDownSUM == settings.trade_stochrsi_base_candle_qtd:
+                        validateSell = True
                         validateBuy = False
                         lastCloseDownSUM = 0
                         lastCloseTradeDown = None
                 else:
-                    lastCloseDownSUM = 0
                     validateSell = False
+                    lastCloseDownSUM = 0
                     lastCloseTradeDown = None
-                statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - WMA {settings.trade_wma_low}: {wmaLow} - WMA {settings.trade_wma_middle}: {wmaMiddle} - WMA {settings.trade_wma_high}: {wmaHigh}"
-
-            if settings.trade_ema_cross:
-                # Compute EMAs
-                emaLow = round(
-                    float((talib.EMA(df['close'], timeperiod=settings.trade_ema_low)).iloc[-1]), 8)
-                emaHigh = round(
-                    float((talib.EMA(df['close'], timeperiod=settings.trade_ema_high)).iloc[-1]), 8)
-                # Trade Validator
-                if settings.trade_upper_stoch_validador:
-                    validateBuy = (float(newestcandleK) > float(newestcandleD)) and (
-                        emaLow > emaHigh) and (float(newestcandleKUpper) > float(newestcandleDUpper)) 
-                    validateSell = (float(newestcandleK) < float(newestcandleD)) and (
-                        emaLow < emaHigh) 
-                else:
-                    validateBuy = (float(newestcandleK) > float(newestcandleD)) and (
-                        emaLow > emaHigh)
-                    validateSell = (newestcandleK < newestcandleD) and (
-                        emaLow < emaHigh)
-                statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - EMA {settings.trade_ema_low}: {emaLow} - EMA {settings.trade_ema_high}: {emaHigh}"
-
-            if settings.trade_ema_base_candle:
-                # Compute EMA
-                emaBaseClosed = round(
-                    float((talib.EMA(df['close'], timeperiod=settings.trade_ema_base_candle_value)).iloc[-1]), 8)
-                # Trade Validator
-                lastClose = df.timeend.iloc[-1]
-                if lastClose != lastCloseTrade:
-                    lastCloseTrade = lastClose
-                    if newestcandleclose > emaBaseClosed:
-                        lastCloseUpSUM = lastCloseUpSUM + 1
-                    else:
+                statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - Upper K%: {newestcandleKUpper} - Upper D%: {newestcandleDUpper}"
+            else:
+                if (float(newestcandleK) > float(newestcandleD)):
+                    lastClose = df.timeend.iloc[-1]
+                    if lastClose != lastCloseTradeUp:
+                        lastCloseTradeUp = lastClose
+                        lastCloseUpSUM += 1
+                    if lastCloseUpSUM == settings.trade_stochrsi_base_candle_qtd:
+                        validateBuy = True
+                        validateSell = False
                         lastCloseUpSUM = 0
-                    if newestcandleclose < emaBaseClosed:
-                        lastCloseDownSUM = lastCloseDownSUM + 1
-                    else:
-                        lastCloseDownSUM = 0
-                if lastCloseUpSUM == settings.trade_ema_base_candle_qtd:
-                    if settings.trade_upper_stoch_validador:
-                        validateBuy = (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper))
-                    else:
-                        validateBuy = (float(newestcandleK) > float(newestcandleD))
-                    validateSell = False
-                    lastCloseUpSUM = 0
-                    lastCloseTrade = None
-                if lastCloseDownSUM == settings.trade_ema_base_candle_qtd:
-                    if settings.trade_upper_stoch_validador:
-                        validateSell = float(newestcandleK) < float(newestcandleD)
-                    else:
-                        validateSell = float(newestcandleK) < float(newestcandleD)
+                        lastCloseTradeUp = None
+                else:
                     validateBuy = False
-                    lastCloseDownSUM = 0
-                    lastCloseTrade = None
-                statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - EMA {settings.trade_ema_low}: {emaLow} - EMA {settings.trade_ema_high}: {emaHigh} - EMA {settings.trade_ema_base_candle_value}: {emaBaseClosed}"
-
-            if not settings.trade_ema_base_candle and not settings.trade_ema_cross and not settings.trade_wma_cross:
-                if settings.trade_upper_stoch_validador:
-                    if (float(newestcandleK) > float(newestcandleD)) and (float(newestcandleKUpper) > float(newestcandleDUpper)):
-                        lastClose = df.timeend.iloc[-1]
-                        if lastClose != lastCloseTradeUp:
-                            lastCloseTradeUp = lastClose
-                            lastCloseUpSUM += 1
-                        if lastCloseUpSUM == settings.trade_stochrsi_base_candle_qtd:
-                            validateBuy = True
-                            validateSell = False
-                            lastCloseUpSUM = 0
-                            lastCloseTradeUp = None
-                    else:
+                    lastCloseUpSUM = 0
+                    lastCloseTradeUp = None
+                if (float(newestcandleK) < float(newestcandleD)):
+                    lastClose = df.timeend.iloc[-1]
+                    if lastClose != lastCloseTradeDown:
+                        lastCloseTradeDown = lastClose
+                        lastCloseDownSUM += 1
+                    if lastCloseDownSUM == settings.trade_stochrsi_base_candle_qtd:
+                        validateSell = True
                         validateBuy = False
-                        lastCloseUpSUM = 0
-                        lastCloseTradeUp = None
-                    if (float(newestcandleK) < float(newestcandleD)):
-                        lastClose = df.timeend.iloc[-1]
-                        if lastClose != lastCloseTradeDown:
-                            lastCloseTradeDown = lastClose
-                            lastCloseDownSUM += 1
-                        if lastCloseDownSUM == settings.trade_stochrsi_base_candle_qtd:
-                            validateSell = True
-                            validateBuy = False
-                            lastCloseDownSUM = 0
-                            lastCloseTradeDown = None
-                    else:
-                        validateSell = False
                         lastCloseDownSUM = 0
                         lastCloseTradeDown = None
-                    statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD} - Upper K%: {newestcandleKUpper} - Upper D%: {newestcandleDUpper}"
                 else:
-                    if (float(newestcandleK) > float(newestcandleD)):
-                        lastClose = df.timeend.iloc[-1]
-                        if lastClose != lastCloseTradeUp:
-                            lastCloseTradeUp = lastClose
-                            lastCloseUpSUM += 1
-                        if lastCloseUpSUM == settings.trade_stochrsi_base_candle_qtd:
-                            validateBuy = True
-                            validateSell = False
-                            lastCloseUpSUM = 0
-                            lastCloseTradeUp = None
-                    else:
-                        validateBuy = False
-                        lastCloseUpSUM = 0
-                        lastCloseTradeUp = None
-                    if (float(newestcandleK) < float(newestcandleD)):
-                        lastClose = df.timeend.iloc[-1]
-                        if lastClose != lastCloseTradeDown:
-                            lastCloseTradeDown = lastClose
-                            lastCloseDownSUM += 1
-                        if lastCloseDownSUM == settings.trade_stochrsi_base_candle_qtd:
-                            validateSell = True
-                            validateBuy = False
-                            lastCloseDownSUM = 0
-                            lastCloseTradeDown = None
-                    else:
-                        validateSell = False
-                        lastCloseDownSUM = 0
-                        lastCloseTradeDown = None
-                    statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD}"
+                    validateSell = False
+                    lastCloseDownSUM = 0
+                    lastCloseTradeDown = None
+                statusMsg = f"Price: {newestcandleclose} - RSI: {newestcandleRSI} - K%: {newestcandleK} - D%: {newestcandleD}"
 
-            print(statusMsg)
+        print(statusMsg)
 
-            result = None
-            if validateBuy:
-                if lastStatus != 1:
-                    lastStatus = 1
-                    asks_lowest = round(
-                        float(client.get_orderbook_ticker(symbol=symbol)['askPrice']), 8)
-                    msg = f"{bcolors.OKGREEN}BUY {symbol} - Price Book: {asks_lowest}{bcolors.ENDC}"
-                    print(msg)
-                    ticks = {}
-                    for filt in client.get_symbol_info(crypto + alt)['filters']:
-                        if filt['filterType'] == 'LOT_SIZE':
-                            if filt['stepSize'].find('1') == 0:
-                                ticks[alt] = 1 - filt['stepSize'].find('.')
-                            else:
-                                ticks[alt] = filt['stepSize'].find('1') - 1
-                            break
-                    if settings.trade_limit_coin_balance:
-                        balance = float(settings.trade_limit_coin_balance)
-                    else:
-                        balance = get_currency_balance(client, alt)
-                    order_quantity = ((math.floor(
-                        balance * 10 ** ticks[alt] / float(asks_lowest)) / float(10 ** ticks[alt])))
-                    if order_quantity > 0 or int(settings.notification_only) == 1:
-                        if int(settings.notification_only) == 1:
-                            msg = f"Notification: Buy {order_quantity} of {crypto} at {asks_lowest} {alt}"
-                            telegram_bot_sendtext(msg)
-                            print(msg)
+        result = None
+        if validateBuy:
+            if lastStatus != 1:
+                lastStatus = 1
+                asks_lowest = round(
+                    float(client.get_orderbook_ticker(symbol=symbol)['askPrice']), 8)
+                msg = f"{bcolors.OKGREEN}BUY {symbol} - Price Book: {asks_lowest}{bcolors.ENDC}"
+                print(msg)
+                ticks = {}
+                for filt in client.get_symbol_info(crypto + alt)['filters']:
+                    if filt['filterType'] == 'LOT_SIZE':
+                        if filt['stepSize'].find('1') == 0:
+                            ticks[alt] = 1 - filt['stepSize'].find('.')
                         else:
-                            msg = f"Purchasing {order_quantity} of {crypto} at {asks_lowest} {alt}"
-                            telegram_bot_sendtext(msg)
-                            print(msg)
-                            while result is None:
-                                result = buy_alt(
-                                    client, alt, crypto, asks_lowest, order_quantity)
-            elif validateSell:
-                if lastStatus != 2:
-                    lastStatus = 2
-                    bids_highest = round(
-                        float(client.get_orderbook_ticker(symbol=symbol)['bidPrice']), 8)
-                    msg = f"{bcolors.ALERT}SELL  {symbol} - Price Book: {bids_highest}{bcolors.ENDC}"
-                    print(msg)
-                    ticks = {}
-                    for filt in client.get_symbol_info(crypto + alt)['filters']:
-                        if filt['filterType'] == 'LOT_SIZE':
-                            if filt['stepSize'].find('1') == 0:
-                                ticks[alt] = 1 - \
-                                    filt['stepSize'].find('.')
-                            else:
-                                ticks[alt] = filt['stepSize'].find(
-                                    '1') - 1
-                            break
-                    order_quantity = get_currency_balance(client, crypto)
-                    if order_quantity > 0 or int(settings.notification_only) == 1:
-                        if int(settings.notification_only) == 1:
-                            msg = f"Notification: Sell {order_quantity} of {crypto} at {bids_highest} {alt}"
-                            telegram_bot_sendtext(msg)
-                            print(msg)
+                            ticks[alt] = filt['stepSize'].find('1') - 1
+                        break
+                if settings.trade_limit_coin_balance:
+                    balance = float(settings.trade_limit_coin_balance)
+                else:
+                    balance = get_currency_balance(client, alt)
+                order_quantity = ((math.floor(
+                    balance * 10 ** ticks[alt] / float(asks_lowest)) / float(10 ** ticks[alt])))
+                if order_quantity > 0 or int(settings.notification_only) == 1:
+                    if int(settings.notification_only) == 1:
+                        msg = f"Notification: Buy {order_quantity} of {crypto} at {asks_lowest} {alt}"
+                        telegram_bot_sendtext(msg)
+                        print(msg)
+                    else:
+                        msg = f"Purchasing {order_quantity} of {crypto} at {asks_lowest} {alt}"
+                        telegram_bot_sendtext(msg)
+                        print(msg)
+                        while result is None:
+                            result = buy_alt(
+                                client, alt, crypto, asks_lowest, order_quantity)
+        elif validateSell:
+            if lastStatus != 2:
+                lastStatus = 2
+                bids_highest = round(
+                    float(client.get_orderbook_ticker(symbol=symbol)['bidPrice']), 8)
+                msg = f"{bcolors.ALERT}SELL  {symbol} - Price Book: {bids_highest}{bcolors.ENDC}"
+                print(msg)
+                ticks = {}
+                for filt in client.get_symbol_info(crypto + alt)['filters']:
+                    if filt['filterType'] == 'LOT_SIZE':
+                        if filt['stepSize'].find('1') == 0:
+                            ticks[alt] = 1 - \
+                                filt['stepSize'].find('.')
                         else:
-                            msg = f"Selling {order_quantity} of {crypto} at {bids_highest} {alt}"
-                            telegram_bot_sendtext(msg)
-                            print(msg)
-                            while result is None:
-                                result = sell_alt(
-                                    client, alt, crypto, bids_highest, order_quantity)
+                            ticks[alt] = filt['stepSize'].find(
+                                '1') - 1
+                        break
+                order_quantity = get_currency_balance(client, crypto)
+                if order_quantity > 0 or int(settings.notification_only) == 1:
+                    if int(settings.notification_only) == 1:
+                        msg = f"Notification: Sell {order_quantity} of {crypto} at {bids_highest} {alt}"
+                        telegram_bot_sendtext(msg)
+                        print(msg)
+                    else:
+                        msg = f"Selling {order_quantity} of {crypto} at {bids_highest} {alt}"
+                        telegram_bot_sendtext(msg)
+                        print(msg)
+                        while result is None:
+                            result = sell_alt(
+                                client, alt, crypto, bids_highest, order_quantity)
 
-            time.sleep(5)
+        time.sleep(5)
 
-        except Exception as e:
-            print('Error while trading...\n{}\n'.format(traceback.format_exc()))
+    except Exception as e:
+        print('Error while trading...\n{}\n'.format(traceback.format_exc()))
 
 
 def get_all_coins():
