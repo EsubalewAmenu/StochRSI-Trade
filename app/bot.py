@@ -482,7 +482,7 @@ def main(symbol, counter, total):
                     lastStatus = 1
                     asks_lowest = round(
                         float(client.get_orderbook_ticker(symbol=symbol)['askPrice']), 8)
-                    msg = f"{bcolors.OKGREEN}BUY - Price Book: {asks_lowest}{bcolors.ENDC}"
+                    msg = f"{bcolors.OKGREEN}BUY {symbol} - Price Book: {asks_lowest}{bcolors.ENDC}"
                     print(msg)
                     ticks = {}
                     for filt in client.get_symbol_info(crypto + alt)['filters']:
@@ -515,7 +515,7 @@ def main(symbol, counter, total):
                     lastStatus = 2
                     bids_highest = round(
                         float(client.get_orderbook_ticker(symbol=symbol)['bidPrice']), 8)
-                    msg = f"{bcolors.ALERT}SELL - Price Book: {bids_highest}{bcolors.ENDC}"
+                    msg = f"{bcolors.ALERT}SELL  {symbol} - Price Book: {bids_highest}{bcolors.ENDC}"
                     print(msg)
                     ticks = {}
                     for filt in client.get_symbol_info(crypto + alt)['filters']:
