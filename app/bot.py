@@ -283,11 +283,16 @@ def main(symbol, counter, total):
         newestcandleD = round(float(df.MyStochrsiD.astype(
             str).iloc[-1]), 8)  # gets last rsi
 
-        if  newestcandleK < 20:
+        if  newestcandleK > newestcandleD and newestcandleD < 20:
             print (f"{bcolors.OKGREEN} {symbol} Oversold {bcolors.ENDC}")
-        elif newestcandleK > 90:
+        elif newestcandleD > newestcandleK and newestcandleK > 90:
             print (f"{bcolors.ALERT} {symbol} Overb {bcolors.ENDC}")
-        
+
+        # if  newestcandleK < 20:
+        #     print (f"{bcolors.OKGREEN} {symbol} Oversold {bcolors.ENDC}")
+        # elif newestcandleK > 90:
+        #     print (f"{bcolors.ALERT} {symbol} Overb {bcolors.ENDC}")
+
         if settings.trade_upper_stoch_validador:
             # Get Binance Data into dataframe
             KLINE_INTERVAL_UPPER = settings.trade_upper_stoch_validador_value
