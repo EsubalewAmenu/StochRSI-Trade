@@ -3,10 +3,10 @@ version: "3.7"
 services:
   stochrsi-bot:
     container_name: stochrsi-trading-bot
-    image: adrianomartins/binance-stochastic-rsi-bot
+    image: my-stoch-trade-image
     restart: always
-    # volumes:
-    #   - .:~
+    volumes:
+      - ./app:/app
     environment:
       BINANCE_APIKEY: "QaygxOYnZ4IzOsGYlABTPjqYV3oDHx6JE82qIyf6gXVVxDSf8HALGvYn8A21Xc7p"
       BINANCE_SECRET_KEY: "20QzAjlOALQXbCPOG8XUIMqGs1LouqNo8SLoftwOM15aHqhWql2ZyoPex6f2pH1m"
