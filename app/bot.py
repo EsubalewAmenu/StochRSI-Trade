@@ -565,10 +565,13 @@ def get_all_coins():
         # print(response.content.decode())
 
         counter = 1
-        for symbol in response.json()['data']:
+
+        symbols = [symbol for symbol in response.json()['data']]
+        random.shuffle(symbols)
+        for symbol in symbols:
             counter += 1
             # if symbol['d'][2].endswith(alt):
-            main(symbol['d'][2], counter, len(response.json()['data']))
+            main(symbol['d'][2], counter, len(symbols))
         return "done"
     else:
         print('All Coins Request failed with status code:', response.status_code)
