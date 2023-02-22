@@ -550,8 +550,6 @@ def stoch_main(symbol, counter, total):
                             result = sell_alt(
                                 client, alt, crypto, bids_highest, order_quantity)
 
-        time.sleep(5)
-
     except Exception as e:
         print('Error while trading...\n{}\n'.format(traceback.format_exc()))
 

@@ -1,6 +1,16 @@
 import requests
 import random
 import settings
+import datetime
+import traceback
+
+from binance.client import Client
+from binance.exceptions import BinanceAPIException
+
+import pandas as pd
+import talib
+import numpy as np  # computing multidimensionla arrays
+import urllib3
 
 def get_all_spot_coins():
 
@@ -27,4 +37,46 @@ def get_all_spot_coins():
         return "done"
     else:
         print('All Coins Request failed with status code:', response.status_code)
+        return None
+
+def get_kline(symbol, LIMIT):
+
+    if not settings.api_key:
+        sys.exit("Configurations Error!")
+    api_key = settings.api_key
+    api_secret_key = settings.api_secret
+    tld = settings.tld
+
+    client = Client(api_key, api_secret_key, tld=tld)
+
+    try:
+        # Get Binance Data into dataframe
+        KLINE_INTERVAL = settings.trade_time_frame
+
+        if LIMIT > 0:
+            candles = client.get_klines(
+                symbol=symbol, interval=KLINE_INTERVAL, limit=LIMIT)
+        else:
+            candles = client.get_klines(
+                symbol=symbol, interval=KLINE_INTERVAL)
+
+
+        df = pd.DataFrame(candles)
+        df.columns = ['timestart', 'open', 'high', 'low',
+                        'close', 'volume', 'timeend', '?', '?', '?', '?', '?']
+        df.timestart = [datetime.datetime.fromtimestamp(
+            i/1000) for i in df.timestart.values]
+        df.timeend = [datetime.datetime.fromtimestamp(
+            i/1000) for i in df.timeend.values]
+
+
+        # Compute RSI after fixing data
+        float_data = [float(x) for x in df.close.values]
+        np_float_data = np.array(float_data)
+        rsi = talib.RSI(np_float_data, settings.trade_rsi_ifr)
+        df['rsi'] = rsi
+
+        return df
+    except Exception as e:
+        print('Error while trading...\n{}\n'.format(traceback.format_exc()))
         return None
