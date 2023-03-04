@@ -21,7 +21,7 @@ from binance.exceptions import BinanceAPIException
 
 import settings
 from colors import bcolors
-from common_codes import get_all_spot_coins, get_kline
+from common_codes import get_all_coins, get_kline
 
 
 def open_close_main(symbol, counter, total):
@@ -57,7 +57,10 @@ def open_close_main(symbol, counter, total):
         # print (" twoDayAgoopen open ", twoDayAgoOpen, " dayBeforeYesterdayopen ", dayBeforeYesterdayOpen, " yesterdayopen " ,yesterdayopen)
 
         if (twoDayAgoClose < twoDayAgoOpen or dayBeforeYesterdayClose < dayBeforeYesterdayOpen ) and yesterdayClose > yesterdayopen:
-            print (f"{bcolors.OKGREEN} Check {symbol} {bcolors.ENDC}")
+            print (f"{bcolors.OKGREEN} Check to buy {symbol} {bcolors.ENDC}")
+
+        elif (twoDayAgoClose > twoDayAgoOpen or dayBeforeYesterdayClose > dayBeforeYesterdayOpen ) and yesterdayClose < yesterdayopen:
+            print (f"{bcolors.WARNING} Check to sell {symbol} {bcolors.ENDC}")
             
         return None
 

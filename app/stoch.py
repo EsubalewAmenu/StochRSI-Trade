@@ -21,7 +21,7 @@ from binance.exceptions import BinanceAPIException
 
 import settings
 from colors import bcolors
-from common_codes import get_all_spot_coins
+from common_codes import get_all_coins
 
 
 def telegram_bot_sendtext(bot_message):
@@ -584,7 +584,7 @@ def get_all_coins():
 # if __name__ == "__main__":
 #     print("Started with ", settings.trade_time_frame, " time frame")
 #     # get_all_coins()
-#     symbols = get_all_spot_coins()
+#     symbols = get_all_coins()
 
 #     counter = 1
 #     for symbol in symbols:

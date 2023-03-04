@@ -15,7 +15,7 @@ services:
       TRADE_TIME_FRAME: "1d" # 1m, 5m, 15m, 1h, 6h, etc.
       TRADE_TIME_FRAME_UPPER_VALIDATOR_VALUE: "1w" # 1m, 5m, 15m, 1h, 6h, etc.
       TRADE_MARKET: 1
-      TRADE_COIN: "BUSD"
+      TRADE_COIN: "BUSDPERP"
       TRADE_CRYPTO: "BTC"
       TRADE_RSI_IFR: 14
       TRADE_RSI_STOCH: 14

@@ -12,7 +12,7 @@ import talib
 import numpy as np  # computing multidimensionla arrays
 import urllib3
 
-def get_all_spot_coins():
+def get_all_coins():
 
     alt = settings.trade_coin
     
@@ -53,12 +53,23 @@ def get_kline(symbol, LIMIT):
         # Get Binance Data into dataframe
         KLINE_INTERVAL = settings.trade_time_frame
 
-        if LIMIT > 0:
-            candles = client.get_klines(
-                symbol=symbol, interval=KLINE_INTERVAL, limit=LIMIT)
+        if symbol.endswith("PERP"):
+            symbol = symbol[:-4]
+            
+            if LIMIT > 0:
+                candles = client.futures_klines(
+                    symbol=symbol, interval=KLINE_INTERVAL, limit=LIMIT, timeout=120)
+            else:
+                candles = client.futures_klines(
+                    symbol=symbol, interval=KLINE_INTERVAL, timeout=120)
         else:
-            candles = client.get_klines(
-                symbol=symbol, interval=KLINE_INTERVAL)
+            if LIMIT > 0:
+                candles = client.get_klines(
+                    symbol=symbol, interval=KLINE_INTERVAL, limit=LIMIT, timeout=120)
+            else:
+                candles = client.get_klines(
+                    symbol=symbol, interval=KLINE_INTERVAL, timeout=120)
+
 
 
         df = pd.DataFrame(candles)
