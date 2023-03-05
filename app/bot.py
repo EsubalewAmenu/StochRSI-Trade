@@ -10,7 +10,7 @@ if __name__ == "__main__":
     print("Started with ", settings.trade_time_frame, " time frame")
     symbols = get_all_coins()
 
-    counter = 1
+    counter = 0
     for symbol in symbols:
         counter += 1
         # stoch_main(symbol['d'][2], counter, len(symbols))
